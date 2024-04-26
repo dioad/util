@@ -1,10 +1,15 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
+
+	"github.com/dioad/generics"
 )
 
 func CleanOpen(path string) (*os.File, error) {
@@ -66,4 +71,31 @@ func ExpandPath(path string) (string, error) {
 	}
 
 	return path, nil
+}
+
+// WaitForFiles waits for a file to exist, it will check every interval seconds up until max seconds.
+func WaitForFiles(interval, max int, files ...string) error {
+	if interval <= 0 {
+		interval = 0
+	}
+	if max <= 0 {
+		max = 1
+	}
+	for i := 0; i < max; i++ {
+		if FilesExist(files...) {
+			return nil
+		}
+		time.Sleep(time.Duration(interval) * time.Second)
+	}
+	return fmt.Errorf("one or more of %s not found", strings.Join(files, ", "))
+}
+
+func fileExists(filename string) error {
+	_, err := os.Stat(filename)
+	return err
+}
+
+// FilesExist checks if all file names exist.
+func FilesExist(files ...string) bool {
+	return generics.Apply(fileExists, files) == nil
 }
