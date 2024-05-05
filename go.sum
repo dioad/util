@@ -1,2 +1,4 @@
+github.com/dioad/generics v0.0.5 h1:FBbG2vjJgbNjTFT8YHZRD0VRWis+ZEuo/4vR7Mwbmc4=
+github.com/dioad/generics v0.0.5/go.mod h1:NFn4N/41m2Ln8xjKm6c9ieZQeKohyCEg0RfQg34aVRg=
 github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
