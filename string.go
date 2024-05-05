@@ -2,6 +2,9 @@ package util
 
 import (
 	"bytes"
+	"fmt"
+	"math/rand"
+	"strings"
 	"text/template"
 )
 
@@ -21,18 +24,88 @@ func ExpandStringTemplate(templateString string, data any) (string, error) {
 
 // SensitiveString Not 'secure' still uses a string as a base type
 // however does protect against accidental exposure in logs
-type SensitiveString struct {
+type MaskedString struct {
 	string
+	Config MaskedConfig
 }
 
-func (s SensitiveString) String() string {
-	return "********"
+type MaskedConfig struct {
+	PrefixCount      uint
+	SuffixCount      uint
+	Mask             string
+	MinMask          uint
+	ObfuscateLength  bool
+	ObfuscatedLength uint
 }
 
-func (s SensitiveString) SensitiveString() string {
+func (s MaskedString) String() string {
+	l := uint(len(s.string))
+	if s.Config.ObfuscateLength {
+		l = s.Config.ObfuscatedLength
+	}
+
+	prefixCount := s.Config.PrefixCount
+	if prefixCount > l {
+		prefixCount = 0
+	}
+
+	suffixCount := s.Config.SuffixCount
+	if suffixCount > l {
+		suffixCount = 0
+	}
+
+	unmaskedCharCount := prefixCount + suffixCount
+
+	charsToMask := l - unmaskedCharCount
+
+	minMask := s.Config.MinMask
+
+	if minMask != 0 && minMask > charsToMask {
+		prefixCount = 0
+		suffixCount = 0
+	}
+
+	if unmaskedCharCount >= uint(len(s.string)) {
+		prefixCount = 0
+		suffixCount = 0
+	}
+
+	prefix := ""
+	if prefixCount > 0 {
+		prefix = s.string[:prefixCount]
+	}
+
+	suffix := ""
+	if suffixCount > 0 {
+		leadingChars := len(s.string) - int(suffixCount)
+		suffix = s.string[leadingChars:]
+	}
+
+	paddingCount := l - (prefixCount + suffixCount)
+
+	maskChar := "*"
+	if s.Config.Mask != "" {
+		maskChar = s.Config.Mask
+	}
+
+	mask := strings.Repeat(maskChar, int(paddingCount))
+
+	return fmt.Sprintf("%s%s%s", prefix, mask, suffix)
+}
+
+func (s MaskedString) MaskedString() string {
 	return s.string
 }
 
-func NewSensitiveString(s string) *SensitiveString {
-	return &SensitiveString{s}
+// NewMaskedString creates a new masked string
+func NewMaskedString(s string) *MaskedString {
+	baseLength := int(1.5 * float32(len(s)))
+	randomLength := rand.Intn(baseLength)
+
+	m := &MaskedString{
+		string: s,
+	}
+	m.Config.ObfuscatedLength = uint(randomLength)
+
+	return m
 }
