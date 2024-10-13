@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -38,7 +39,7 @@ type MaskedConfig struct {
 	ObfuscatedLength uint
 }
 
-func (s MaskedString) String() string {
+func (s *MaskedString) String() string {
 	l := uint(len(s.string))
 	if s.Config.ObfuscateLength {
 		l = s.Config.ObfuscatedLength
@@ -93,8 +94,18 @@ func (s MaskedString) String() string {
 	return fmt.Sprintf("%s%s%s", prefix, mask, suffix)
 }
 
-func (s MaskedString) MaskedString() string {
+func (s *MaskedString) MaskedString() string {
 	return s.string
+}
+
+func (s *MaskedString) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	s.string = str
+	return nil
 }
 
 // NewMaskedString creates a new masked string
