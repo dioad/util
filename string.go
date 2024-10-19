@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"strings"
 	"text/template"
 )
@@ -29,6 +30,23 @@ type MaskedString struct {
 	string
 	Config MaskedConfig
 }
+
+func MaskedStringDecodeHook(from, to reflect.Type, data interface{}) (interface{}, error) {
+	if from.Kind() != reflect.String || to != reflect.TypeOf(MaskedString{}) {
+		return data, nil
+	}
+
+	return NewMaskedString(data.(string)), nil
+}
+
+// type U struct {
+// 	Type string
+// 	Name string
+// }
+//
+// type B struct {
+// 	u U `json:"u"`
+// }
 
 type MaskedConfig struct {
 	PrefixCount      uint
