@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -158,6 +157,10 @@ func loadStructFromReaderWithDecoder[T any](r io.Reader, dFunc decoderFunc) (*T,
 		return nil, err
 	}
 
+	if generics.IsZeroValue(data) {
+		return nil, fmt.Errorf("failed to load data from file")
+	}
+
 	return &data, nil
 }
 
@@ -165,7 +168,7 @@ func LoadStructFromFile[T any](filePath string) (*T, error) {
 	decFunc := decoderFuncFromFilePath(filePath)
 
 	if decFunc == nil {
-		return nil, errors.New("unrecognised access token file type. expect yaml or json")
+		return nil, fmt.Errorf("unrecognised file type. expected yaml/yml or json")
 	}
 
 	structFile, err := CleanOpen(filePath)
@@ -190,10 +193,16 @@ func SaveStructToFile[T any](v *T, filePath string) error {
 	encFunc := encoderFuncFromFilePath(filePath)
 
 	if encFunc == nil {
-		return errors.New("unrecognised access token file type. expect yaml or json")
+		return fmt.Errorf("unrecognised file type. expected yaml/yml or json")
 	}
 
-	structFile, err := CleanOpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
+	filePathDir := filepath.Dir(filePath)
+	_, err := CreateDirPath(filePathDir, "")
+	if err != nil {
+		return fmt.Errorf("failed to create directory path: %w", err)
+	}
+
+	structFile, err := CleanOpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
