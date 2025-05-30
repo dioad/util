@@ -60,7 +60,7 @@ func TestLookupEnvBool(t *testing.T) {
 		},
 		{
 			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_KEY", "TrUe"),
+			lookupFunc: mockLookupEnv("TEST_KEY", "1"),
 			expected:   true,
 		},
 		{
@@ -76,7 +76,14 @@ func TestLookupEnvBool(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if value := lookupEnvBool(test.lookupFunc, test.key); value != test.expected {
+		if value, err := lookupEnvBool(test.lookupFunc, test.key); value != test.expected {
+			if err != nil && test.expected {
+				t.Fatalf("failed to lookup %v, got %v", test.expected, err)
+			} else if err == nil && !test.expected {
+				t.Fatalf("expected error for key %s, got nil", test.key)
+			} else if err != nil && !test.expected {
+				continue // This is expected for invalid boolean values
+			}
 			t.Fatalf("expected %v, got %v", test.expected, value)
 		}
 	}

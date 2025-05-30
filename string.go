@@ -24,13 +24,14 @@ func ExpandStringTemplate(templateString string, data any) (string, error) {
 	return buf.String(), nil
 }
 
-// SensitiveString Not 'secure' still uses a string as a base type
+// MaskedString Not 'secure' still uses a string as a base type
 // however does protect against accidental exposure in logs
 type MaskedString struct {
 	string
 	Config MaskedConfig
 }
 
+// MaskedStringEncodeHook encodes a MaskedString to a string.
 func MaskedStringDecodeHook(from, to reflect.Type, data interface{}) (interface{}, error) {
 	if from.Kind() != reflect.String || to != reflect.TypeOf(MaskedString{}) {
 		return data, nil
@@ -126,15 +127,23 @@ func (s *MaskedString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func maskedStringLength(s string) uint {
+	baseLength := int(1.5 * float32(len(s)))
+	if baseLength == 0 {
+		baseLength = 8
+	}
+
+	return uint(rand.Intn(baseLength))
+}
+
 // NewMaskedString creates a new masked string
 func NewMaskedString(s string) *MaskedString {
-	baseLength := int(1.5 * float32(len(s)))
-	randomLength := rand.Intn(baseLength)
-
 	m := &MaskedString{
 		string: s,
+		Config: MaskedConfig{
+			ObfuscatedLength: maskedStringLength(s),
+		},
 	}
-	m.Config.ObfuscatedLength = uint(randomLength)
 
 	return m
 }

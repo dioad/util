@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -77,9 +78,9 @@ func ExpandPath(path string) (string, error) {
 }
 
 // WaitForFiles waits for a set of files to exist, it will check every interval seconds up until max seconds.
-func WaitForFiles(interval, max uint, files ...string) error {
+func WaitForFiles(ctx context.Context, interval, max uint, files ...string) error {
 	i := time.Duration(interval) * time.Second
-	return WaitFor(i, max, func() bool {
+	return WaitFor(ctx, i, max, func() bool {
 		return FilesExist(files...)
 	})
 }
@@ -95,11 +96,11 @@ func FilesExist(files ...string) bool {
 }
 
 type decoder interface {
-	Decode(v interface{}) error
+	Decode(v any) error
 }
 
 type encoder interface {
-	Encode(v interface{}) error
+	Encode(v any) error
 }
 
 type decoderFunc func(r io.Reader) decoder
@@ -144,15 +145,15 @@ func decoderFuncFromFilePath(path string) decoderFunc {
 }
 
 func saveStructToWriterWithEncoder[T any](v *T, w io.Writer, eFunc encoderFunc) error {
-	encoder := eFunc(w)
-	return encoder.Encode(v)
+	enc := eFunc(w)
+	return enc.Encode(v)
 }
 
 func loadStructFromReaderWithDecoder[T any](r io.Reader, dFunc decoderFunc) (*T, error) {
 	var data T
 
-	encoder := dFunc(r)
-	err := encoder.Decode(&data)
+	dec := dFunc(r)
+	err := dec.Decode(&data)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +166,10 @@ func loadStructFromReaderWithDecoder[T any](r io.Reader, dFunc decoderFunc) (*T,
 }
 
 func LoadStructFromFile[T any](filePath string) (*T, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("file path is empty")
+	}
+
 	decFunc := decoderFuncFromFilePath(filePath)
 
 	if decFunc == nil {
@@ -190,6 +195,10 @@ func LoadStructFromFile[T any](filePath string) (*T, error) {
 }
 
 func SaveStructToFile[T any](v *T, filePath string) error {
+	if filePath == "" {
+		return fmt.Errorf("file path is empty")
+	}
+
 	encFunc := encoderFuncFromFilePath(filePath)
 
 	if encFunc == nil {
