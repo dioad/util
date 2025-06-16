@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -24,47 +25,34 @@ func TestExpandStringTemplate(t *testing.T) {
 	}
 }
 
-// func TestMaskedString(t *testing.T) {
-// 	s := NewMaskedString("test")
-// 	if s.String() != "********" {
-// 		t.Errorf("expected '********' got '%s'", s.String())
-// 	}
-// 	if fmt.Sprintf("%v", s) != "********" {
-// 		t.Errorf("expected '********' got '%s'", s)
-// 	}
-// 	if s.MaskedString() != "test" {
-// 		t.Errorf("expected 'test' got '%s'", s.MaskedString())
-// 	}
-// }
-//
-// func TestMaskedStringCustomMask(t *testing.T) {
-// 	s := NewMaskedString("test")
-// 	s.Config.Mask = "X"
-//
-// 	if s.String() != "XXXX" {
-// 		t.Errorf("expected 'XXXX' got '%s'", s.String())
-// 	}
-// 	if fmt.Sprintf("%v", s) != "XXXX" {
-// 		t.Errorf("expected 'XXXX' got '%s'", s)
-// 	}
-// 	if s.MaskedString() != "test" {
-// 		t.Errorf("expected 'test' got '%s'", s.MaskedString())
-// 	}
-// }
-//
-// func TestMaskedStringWithPrefix(t *testing.T) {
-// 	s := NewMaskedString("test")
-// 	s.Config.PrefixCount = 1
-// 	if s.String() != "t****" {
-// 		t.Errorf("expected 't****' got '%s'", s.String())
-// 	}
-// 	if fmt.Sprintf("%v", s) != "t****" {
-// 		t.Errorf("expected 't****' got '%s'", s)
-// 	}
-// 	if s.MaskedString() != "test" {
-// 		t.Errorf("expected 'test' got '%s'", s.MaskedString())
-// 	}
-// }
+func TestMaskedStringJSON(t *testing.T) {
+	// Test JSON marshaling and unmarshaling
+	original := "sensitive-data"
+	ms := NewMaskedString(original)
+
+	// Test MarshalJSON
+	jsonData, err := json.Marshal(ms)
+	if err != nil {
+		t.Errorf("unexpected error marshaling MaskedString: %v", err)
+	}
+
+	// The JSON should be the original string in quotes
+	expected := fmt.Sprintf("\"%s\"", original)
+	if string(jsonData) != expected {
+		t.Errorf("expected JSON %s, got %s", expected, string(jsonData))
+	}
+
+	// Test UnmarshalJSON
+	var newMS MaskedString
+	err = json.Unmarshal(jsonData, &newMS)
+	if err != nil {
+		t.Errorf("unexpected error unmarshaling MaskedString: %v", err)
+	}
+
+	if newMS.UnmaskedString() != original {
+		t.Errorf("expected unmarshaled value %s, got %s", original, newMS.UnmaskedString())
+	}
+}
 
 func TestMaskedString(t *testing.T) {
 	tests := []struct {
@@ -175,8 +163,8 @@ func TestMaskedString(t *testing.T) {
 			if fmt.Sprintf("%v", s) != tt.expected {
 				t.Errorf("expected '%s' got '%s'", tt.expected, s)
 			}
-			if s.MaskedString() != tt.str {
-				t.Errorf("expected '%s' got '%s'", tt.str, s.MaskedString())
+			if s.UnmaskedString() != tt.str {
+				t.Errorf("expected '%s' got '%s'", tt.str, s.UnmaskedString())
 			}
 		})
 	}
@@ -249,8 +237,8 @@ func TestMaskedStringWithObfuscatedLength(t *testing.T) {
 			if fmt.Sprintf("%v", s) != tt.expected {
 				t.Errorf("expected '%s' got '%s'", tt.expected, s)
 			}
-			if s.MaskedString() != tt.str {
-				t.Errorf("expected '%s' got '%s'", tt.str, s.MaskedString())
+			if s.UnmaskedString() != tt.str {
+				t.Errorf("expected '%s' got '%s'", tt.str, s.UnmaskedString())
 			}
 		})
 	}
