@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestLookupEnvWithDefault(t *testing.T) {

@@ -26,6 +26,27 @@ func ExpandStringTemplate(templateString string, data any) (string, error) {
 	return buf.String(), nil
 }
 
+// InSlice checks if a string is present in a slice of strings.
+func InSlice(s string, slice []string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// Truncate returns a truncated string with an ellipsis if it exceeds the max length.
+func Truncate(s string, max uint) string {
+	if uint(len(s)) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
+}
+
 // MaskedString provides a way to handle sensitive string values while preventing
 // accidental exposure in logs or user interfaces. When the string is displayed
 // or logged, it shows a masked version instead of the actual sensitive value.

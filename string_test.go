@@ -25,6 +25,37 @@ func TestExpandStringTemplate(t *testing.T) {
 	}
 }
 
+func TestInSlice(t *testing.T) {
+	slice := []string{"a", "b", "c"}
+	if !InSlice("a", slice) {
+		t.Errorf("expected true for 'a'")
+	}
+	if InSlice("d", slice) {
+		t.Errorf("expected false for 'd'")
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		s        string
+		max      uint
+		expected string
+	}{
+		{"hello world", 15, "hello world"},
+		{"hello world", 11, "hello world"},
+		{"hello world", 8, "hello..."},
+		{"hello world", 3, "hel"},
+		{"hello world", 1, "h"},
+		{"", 5, ""},
+	}
+	for _, tt := range tests {
+		result := Truncate(tt.s, tt.max)
+		if result != tt.expected {
+			t.Errorf("Truncate(%s, %d) = %s, expected %s", tt.s, tt.max, result, tt.expected)
+		}
+	}
+}
+
 func TestMaskedStringJSON(t *testing.T) {
 	// Test JSON marshaling and unmarshaling
 	original := "sensitive-data"

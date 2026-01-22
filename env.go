@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
 
 // LookupEnvWithDefault returns the value of the environment variable named by the key.
@@ -100,4 +101,54 @@ func LookupEnvInt(key string) (int, error) {
 	}
 
 	return i, nil
+}
+
+// LookupEnvFloat64 returns the float64 value of the environment variable named by the key.
+// It returns an error if the variable is not present or cannot be parsed as a float64.
+//
+// Example:
+//
+//	// Get a threshold value from environment
+//	threshold, err := util.LookupEnvFloat64("THRESHOLD")
+//	if err != nil {
+//	    // Handle error or use default
+//	    threshold = 0.5
+//	}
+func LookupEnvFloat64(key string) (float64, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return 0, fmt.Errorf("environment variable %s is not set", key)
+	}
+
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s is not a valid float: %w", key, err)
+	}
+
+	return f, nil
+}
+
+// LookupEnvDuration returns the duration value of the environment variable named by the key.
+// It returns an error if the variable is not present or cannot be parsed as a duration.
+//
+// Example:
+//
+//	// Get timeout duration from environment
+//	timeout, err := util.LookupEnvDuration("TIMEOUT")
+//	if err != nil {
+//	    // Handle error or use default
+//	    timeout = 30 * time.Second
+//	}
+func LookupEnvDuration(key string) (time.Duration, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return 0, fmt.Errorf("environment variable %s is not set", key)
+	}
+
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s is not a valid duration: %w", key, err)
+	}
+
+	return d, nil
 }

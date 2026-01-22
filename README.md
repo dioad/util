@@ -5,9 +5,9 @@ A collection of Go utility functions for common tasks.
 ## Features
 
 - **Environment**: Helper functions for looking up environment variables with default values and type conversion (bool,
-  int, URL).
+  int, URL, float64, duration).
 - **File**: Secure file operations, path expansion, and structured data loading/saving (JSON, YAML).
-- **String**: String template expansion and sensitive string masking.
+- **String**: String template expansion, sensitive string masking, and utilities like truncation and slice checking.
 - **Wait**: Flexible waiting mechanisms for conditions, files, and function returns.
 
 ## Installation
