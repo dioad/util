@@ -211,3 +211,107 @@ func TestLookupEnvInt(t *testing.T) {
 		})
 	}
 }
+
+func TestLookupEnvFloat64(t *testing.T) {
+	tests := []struct {
+		name          string
+		key           string
+		value         string
+		set           bool
+		expectedValue float64
+		wantErr       bool
+	}{
+		{
+			name:          "valid float",
+			key:           "TEST_KEY_FLOAT",
+			value:         "3.14159",
+			set:           true,
+			expectedValue: 3.14159,
+			wantErr:       false,
+		},
+		{
+			name:    "invalid float",
+			key:     "TEST_KEY_INVALID_FLOAT",
+			value:   "not-a-float",
+			set:     true,
+			wantErr: true,
+		},
+		{
+			name:    "not set",
+			key:     "TEST_KEY_UNSET_FLOAT",
+			set:     false,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				os.Setenv(tt.key, tt.value)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
+			}
+
+			value, err := LookupEnvFloat64(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error expectation mismatch: wantErr %v, got %v", tt.wantErr, err)
+			}
+			if !tt.wantErr && value != tt.expectedValue {
+				t.Fatalf("expected %f, got %f", tt.expectedValue, value)
+			}
+		})
+	}
+}
+
+func TestLookupEnvDuration(t *testing.T) {
+	tests := []struct {
+		name          string
+		key           string
+		value         string
+		set           bool
+		expectedValue time.Duration
+		wantErr       bool
+	}{
+		{
+			name:          "valid duration",
+			key:           "TEST_KEY_DURATION",
+			value:         "5s",
+			set:           true,
+			expectedValue: 5 * time.Second,
+			wantErr:       false,
+		},
+		{
+			name:    "invalid duration",
+			key:     "TEST_KEY_INVALID_DURATION",
+			value:   "not-a-duration",
+			set:     true,
+			wantErr: true,
+		},
+		{
+			name:    "not set",
+			key:     "TEST_KEY_UNSET_DURATION",
+			set:     false,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				os.Setenv(tt.key, tt.value)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
+			}
+
+			value, err := LookupEnvDuration(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error expectation mismatch: wantErr %v, got %v", tt.wantErr, err)
+			}
+			if !tt.wantErr && value != tt.expectedValue {
+				t.Fatalf("expected %v, got %v", tt.expectedValue, value)
+			}
+		})
+	}
+}
