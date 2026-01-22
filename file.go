@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,11 +11,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/go-homedir"
-	"gopkg.in/yaml.v3"
-
 	"github.com/dioad/generics"
 )
+
+// Common errors that can be returned by file operations
+var (
+	ErrEmptyPath          = errors.New("file path is empty")
+	ErrUnsupportedFormat  = errors.New("unsupported file format")
+	ErrDecodedDataIsEmpty = errors.New("decoded data is empty (zero value)")
+	ErrNoFilesSpecified   = errors.New("no files specified")
+)
+
+// expandAndValidatePath expands a path and validates it.
+// This is a helper function used by CleanOpen and CleanOpenFile.
+func expandAndValidatePath(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("%w: cannot open a file with an empty path", ErrEmptyPath)
+	}
+
+	expandedPath, err := ExpandPath(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to expand path: %w", err)
+	}
+
+	return expandedPath, nil
+}
 
 // CleanOpen opens a file with a cleaned and expanded path.
 // It expands the path (resolving ~ and environment variables) and cleans it
@@ -28,12 +49,17 @@ import (
 //	}
 //	defer file.Close()
 func CleanOpen(path string) (*os.File, error) {
-	path, err := ExpandPath(path)
+	expandedPath, err := expandAndValidatePath(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand path: %w", err)
+		return nil, err
 	}
 
-	return os.Open(path) // path is already cleaned by ExpandPath
+	file, err := os.Open(expandedPath) // path is already cleaned by ExpandPath
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
+	}
+
+	return file, nil
 }
 
 // CleanOpenFile opens a file with the specified flags and permissions, using a cleaned and expanded path.
@@ -48,12 +74,17 @@ func CleanOpen(path string) (*os.File, error) {
 //	}
 //	defer file.Close()
 func CleanOpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-	path, err := ExpandPath(path)
+	expandedPath, err := expandAndValidatePath(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand path: %w", err)
+		return nil, err
 	}
 
-	return os.OpenFile(path, flag, perm) // #nosec - path is already cleaned by ExpandPath
+	file, err := os.OpenFile(expandedPath, flag, perm) // #nosec - path is already cleaned by ExpandPath
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s with flags %d: %w", path, flag, err)
+	}
+
+	return file, nil
 }
 
 // CreateDirPath creates a directory path if it doesn't exist.
@@ -69,21 +100,29 @@ func CleanOpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 //	}
 //	// configDir now contains the absolute path to the created directory
 func CreateDirPath(path string, defaultPath string) (string, error) {
+	// Use defaultPath if path is empty
 	if path == "" {
 		path = defaultPath
+		// If both are empty, use current directory
+		if path == "" {
+			path = "."
+		}
 	}
 
-	path, err := ExpandPath(path)
+	// Expand and clean the path
+	expandedPath, err := ExpandPath(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to expand path: %w", err)
 	}
 
-	err = os.MkdirAll(path, 0750)
+	// Create the directory with secure permissions
+	// 0750 = user:rwx, group:r-x, other:---
+	err = os.MkdirAll(expandedPath, 0750)
 	if err != nil {
-		return "", fmt.Errorf("failed to create directory: %w", err)
+		return "", fmt.Errorf("failed to create directory %s: %w", path, err)
 	}
 
-	return path, nil
+	return expandedPath, nil
 }
 
 // ExpandPath expands a path to an absolute path.
@@ -101,6 +140,12 @@ func CreateDirPath(path string, defaultPath string) (string, error) {
 //	}
 //	// path now contains the absolute path with ~ and ${APP_DIR} expanded
 func ExpandPath(path string) (string, error) {
+	if path == "" {
+		// Empty path is technically valid in some contexts (current directory)
+		// but we'll still expand it to an absolute path
+		path = "."
+	}
+
 	// Expand ~ to home directory
 	expandedPath, err := homedir.Expand(path)
 	if err != nil {

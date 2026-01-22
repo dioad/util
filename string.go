@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"strings"
@@ -67,9 +68,8 @@ type MaskedConfig struct {
 	ObfuscatedLength uint
 }
 
-// String returns a masked version of the string according to the configuration.
-// This method is called when the string is printed or logged.
-func (s *MaskedString) String() string {
+// masked returns the masked representation according to the configuration.
+func (s MaskedString) masked() string {
 	// Determine the effective length to use
 	effectiveLength := uint(len(s.string))
 	if s.Config.ObfuscateLength {
@@ -95,6 +95,8 @@ func (s *MaskedString) String() string {
 	if s.Config.MinMask > 0 && s.Config.MinMask > charsToMask {
 		prefixCount = 0
 		suffixCount = 0
+		totalUnmasked = 0
+		charsToMask = effectiveLength
 	}
 
 	// If we're trying to show more characters than exist, mask everything
@@ -113,6 +115,9 @@ func (s *MaskedString) String() string {
 	suffix := ""
 	if suffixCount > 0 {
 		leadingChars := len(s.string) - int(suffixCount)
+		if leadingChars < 0 {
+			leadingChars = 0
+		}
 		suffix = s.string[leadingChars:]
 	}
 
@@ -132,6 +137,21 @@ func (s *MaskedString) String() string {
 	return fmt.Sprintf("%s%s%s", prefix, mask, suffix)
 }
 
+// String returns a masked version of the string according to the configuration.
+// This method is called when the string is printed or logged.
+// Use a value receiver so both value and pointer formatting are masked.
+func (s MaskedString) String() string {
+	return s.masked()
+}
+
+// Format ensures all fmt verbs use masked output.
+func (s MaskedString) Format(f fmt.State, c rune) {
+	io.WriteString(f, s.masked())
+}
+
+// GoString masks output for %#v formatting too.
+func (s MaskedString) GoString() string { return s.masked() }
+
 // UnmaskedString returns the original, unmasked string.
 // Use this method with caution as it exposes the sensitive value.
 func (s *MaskedString) UnmaskedString() string {
@@ -139,8 +159,14 @@ func (s *MaskedString) UnmaskedString() string {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// It marshals the unmasked string value.
-func (s *MaskedString) MarshalJSON() ([]byte, error) {
+// By default, it marshals the masked string to avoid accidental leaks.
+func (s MaskedString) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.masked())
+}
+
+// MarshalJSONUnmasked explicitly marshals the raw, unmasked value.
+// Use with caution and only in secure contexts.
+func (s MaskedString) MarshalJSONUnmasked() ([]byte, error) {
 	return json.Marshal(s.string)
 }
 
