@@ -30,10 +30,16 @@ func TestMaskedStringJSON(t *testing.T) {
 	original := "sensitive-data"
 	ms := NewMaskedString(original)
 
-	// Test MarshalJSON
-	jsonData, err := json.Marshal(ms)
+	// Test MarshalJSON should fail
+	_, err := json.Marshal(ms)
+	if err == nil {
+		t.Error("expected error when marshaling MaskedString, got nil")
+	}
+
+	// Test MarshalJSONUnmasked
+	jsonData, err := ms.MarshalJSONUnmasked()
 	if err != nil {
-		t.Errorf("unexpected error marshaling MaskedString: %v", err)
+		t.Errorf("unexpected error marshaling MaskedString unmasked: %v", err)
 	}
 
 	// The JSON should be the original string in quotes

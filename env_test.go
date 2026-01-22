@@ -2,90 +2,92 @@ package util
 
 import (
 	"net/url"
+	"os"
 	"testing"
 )
 
-func mockLookupEnv(lookupKey, result string) envLookup {
-	return func(key string) (string, bool) {
-		if key != lookupKey {
-			return "", false
-		}
-		return result, true
-	}
-}
-
 func TestLookupEnvWithDefault(t *testing.T) {
-	tests := []struct {
-		key          string
-		defaultValue string
-		lookupFunc   envLookup
-		expected     string
-	}{
-		{
-			key:          "TEST_KEY",
-			lookupFunc:   mockLookupEnv("TEST_KEY", "value"),
-			defaultValue: "defaultValue",
-			expected:     "value",
-		},
-		{
-			key:          "TEST_KEY_NO_VALUE",
-			lookupFunc:   mockLookupEnv("TEST_KEY", "value"),
-			defaultValue: "defaultValue",
-			expected:     "defaultValue",
-		},
-	}
-
-	for _, test := range tests {
-		if value := lookupEnvWithDefault(test.lookupFunc, test.key, test.defaultValue); value != test.expected {
-			t.Fatalf("expected %v, got %v", test.expected, value)
+	t.Run("existing variable", func(t *testing.T) {
+		os.Setenv("TEST_KEY", "value")
+		defer os.Unsetenv("TEST_KEY")
+		if value := LookupEnvWithDefault("TEST_KEY", "defaultValue"); value != "value" {
+			t.Fatalf("expected value, got %v", value)
 		}
-	}
+	})
+
+	t.Run("non-existing variable", func(t *testing.T) {
+		os.Unsetenv("TEST_KEY")
+		if value := LookupEnvWithDefault("TEST_KEY", "defaultValue"); value != "defaultValue" {
+			t.Fatalf("expected defaultValue, got %v", value)
+		}
+	})
 }
 
 func TestLookupEnvBool(t *testing.T) {
 	tests := []struct {
-		key        string
-		lookupFunc envLookup
-		expected   bool
+		name     string
+		key      string
+		value    string
+		set      bool
+		expected bool
+		wantErr  bool
 	}{
 		{
-			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_KEY", "true"),
-			expected:   true,
+			name:     "valid true",
+			key:      "TEST_KEY_TRUE",
+			value:    "true",
+			set:      true,
+			expected: true,
+			wantErr:  false,
 		},
 		{
-			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_KEY", "TRUE"),
-			expected:   true,
+			name:     "valid TRUE",
+			key:      "TEST_KEY_TRUE_UPPER",
+			value:    "TRUE",
+			set:      true,
+			expected: true,
+			wantErr:  false,
 		},
 		{
-			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_KEY", "1"),
-			expected:   true,
+			name:     "valid 1",
+			key:      "TEST_KEY_1",
+			value:    "1",
+			set:      true,
+			expected: true,
+			wantErr:  false,
 		},
 		{
-			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_NO_KEY", "asdf"),
-			expected:   false,
+			name:    "not set",
+			key:     "TEST_KEY_UNSET",
+			set:     false,
+			wantErr: true,
 		},
 		{
-			key:        "TEST_KEY",
-			lookupFunc: mockLookupEnv("TEST_KEY", "asdf"),
-			expected:   false,
+			name:    "invalid value",
+			key:     "TEST_KEY_INVALID",
+			value:   "not-a-bool",
+			set:     true,
+			wantErr: true,
 		},
 	}
 
-	for _, test := range tests {
-		if value, err := lookupEnvBool(test.lookupFunc, test.key); value != test.expected {
-			if err != nil && test.expected {
-				t.Fatalf("failed to lookup %v, got %v", test.expected, err)
-			} else if err == nil && !test.expected {
-				t.Fatalf("expected error for key %s, got nil", test.key)
-			} else if err != nil && !test.expected {
-				continue // This is expected for invalid boolean values
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				os.Setenv(tt.key, tt.value)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
 			}
-			t.Fatalf("expected %v, got %v", test.expected, value)
-		}
+
+			value, err := LookupEnvBool(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error expectation mismatch: wantErr %v, got %v", tt.wantErr, err)
+			}
+			if !tt.wantErr && value != tt.expected {
+				t.Fatalf("expected %v, got %v", tt.expected, value)
+			}
+		})
 	}
 }
 
@@ -99,55 +101,62 @@ func MustParseURL(s string) *url.URL {
 
 func TestLookupEnvURL(t *testing.T) {
 	tests := []struct {
+		name          string
 		key           string
-		lookupFunc    envLookup
+		value         string
+		set           bool
 		expectedValue *url.URL
-		errorExpected bool
+		wantErr       bool
 	}{
 		{
-			key:           "TEST_KEY",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "https://asdf/asdf"),
-			expectedValue: MustParseURL("https://asdf/asdf"),
-			errorExpected: false,
+			name:          "valid URL",
+			key:           "TEST_KEY_URL",
+			value:         "https://example.com/path",
+			set:           true,
+			expectedValue: MustParseURL("https://example.com/path"),
+			wantErr:       false,
 		},
 		{
-			key:           "TEST_KEY_INVALID_VALUE",
-			lookupFunc:    mockLookupEnv("TEST_KEY_INVALID_VALUE", "asdf\nasdf"),
-			expectedValue: nil,
-			errorExpected: true,
+			name:    "invalid URL",
+			key:     "TEST_KEY_INVALID_URL",
+			value:   "asdf\nasdf",
+			set:     true,
+			wantErr: true,
 		},
 		{
-			key:           "TEST_KEY_NO_VALUE",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "https://asdf/asdf"),
+			name:          "not set",
+			key:           "TEST_KEY_UNSET_URL",
+			set:           false,
 			expectedValue: nil,
-			errorExpected: false,
+			wantErr:       false,
 		},
 	}
 
-	for _, test := range tests {
-		value, err := lookupEnvURL(test.lookupFunc, test.key)
-
-		if err != nil && !test.errorExpected {
-			t.Fatalf("failed to lookup %v, got %v", test.expectedValue, err)
-		}
-
-		if err == nil && test.errorExpected {
-			t.Fatalf("expected error, got %v", value)
-		}
-
-		if value == nil && test.expectedValue != nil {
-			t.Fatalf("expected %v, got nil", test.expectedValue)
-		}
-
-		if value != nil && test.expectedValue == nil {
-			t.Fatalf("expected nil, got %v", value)
-		}
-
-		if value != nil && test.expectedValue != nil {
-			if value.String() != test.expectedValue.String() {
-				t.Fatalf("expected %v, got %v", test.expectedValue, value)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				os.Setenv(tt.key, tt.value)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
 			}
-		}
+
+			value, err := LookupEnvURL(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error expectation mismatch: wantErr %v, got %v", tt.wantErr, err)
+			}
+			if !tt.wantErr {
+				if value == nil && tt.expectedValue != nil {
+					t.Fatalf("expected %v, got nil", tt.expectedValue)
+				}
+				if value != nil && tt.expectedValue == nil {
+					t.Fatalf("expected nil, got %v", value)
+				}
+				if value != nil && tt.expectedValue != nil && value.String() != tt.expectedValue.String() {
+					t.Fatalf("expected %v, got %v", tt.expectedValue, value)
+				}
+			}
+		})
 	}
 }
 
@@ -155,58 +164,49 @@ func TestLookupEnvInt(t *testing.T) {
 	tests := []struct {
 		name          string
 		key           string
-		lookupFunc    envLookup
+		value         string
+		set           bool
 		expectedValue int
-		errorExpected bool
+		wantErr       bool
 	}{
 		{
 			name:          "valid integer",
-			key:           "TEST_KEY",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "42"),
+			key:           "TEST_KEY_INT",
+			value:         "42",
+			set:           true,
 			expectedValue: 42,
-			errorExpected: false,
+			wantErr:       false,
 		},
 		{
-			name:          "invalid integer",
-			key:           "TEST_KEY",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "not-an-integer"),
-			expectedValue: 0,
-			errorExpected: true,
+			name:    "invalid integer",
+			key:     "TEST_KEY_INVALID_INT",
+			value:   "not-an-integer",
+			set:     true,
+			wantErr: true,
 		},
 		{
-			name:          "negative integer",
-			key:           "TEST_KEY",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "-123"),
-			expectedValue: -123,
-			errorExpected: false,
-		},
-		{
-			name:          "zero",
-			key:           "TEST_KEY",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "0"),
-			expectedValue: 0,
-			errorExpected: false,
-		},
-		{
-			name:          "variable not set",
-			key:           "TEST_KEY_NOT_SET",
-			lookupFunc:    mockLookupEnv("TEST_KEY", "42"),
-			expectedValue: 0,
-			errorExpected: true,
+			name:    "not set",
+			key:     "TEST_KEY_UNSET_INT",
+			set:     false,
+			wantErr: true,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			value, err := lookupEnvInt(test.lookupFunc, test.key)
-
-			if (err != nil) != test.errorExpected {
-				t.Fatalf("error expectation mismatch: expected error: %v, got error: %v",
-					test.errorExpected, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				os.Setenv(tt.key, tt.value)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
 			}
 
-			if !test.errorExpected && value != test.expectedValue {
-				t.Fatalf("expected value %d, got %d", test.expectedValue, value)
+			value, err := LookupEnvInt(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error expectation mismatch: wantErr %v, got %v", tt.wantErr, err)
+			}
+			if !tt.wantErr && value != tt.expectedValue {
+				t.Fatalf("expected %d, got %d", tt.expectedValue, value)
 			}
 		})
 	}

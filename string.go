@@ -159,9 +159,10 @@ func (s *MaskedString) UnmaskedString() string {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// By default, it marshals the masked string to avoid accidental leaks.
+// It returns an error to prevent accidental serialization of sensitive data.
+// Use MarshalJSONUnmasked if you explicitly need to serialize the raw value.
 func (s MaskedString) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.masked())
+	return nil, fmt.Errorf("MaskedString cannot be marshaled to JSON to prevent accidental exposure")
 }
 
 // MarshalJSONUnmasked explicitly marshals the raw, unmasked value.

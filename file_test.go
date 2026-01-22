@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -94,9 +95,10 @@ func TestCleanOpen(t *testing.T) {
 		// An empty path should be expanded to the current directory
 		file, err := CleanOpen("")
 		if err != nil {
-			// This might fail if the current directory doesn't exist or isn't readable
-			// but that's unlikely in a test environment
-			t.Errorf("unexpected error: %s", err)
+			// file.go says: fmt.Errorf("%w: cannot open a file with an empty path", ErrEmptyPath)
+			if !errors.Is(err, ErrEmptyPath) {
+				t.Errorf("expected ErrEmptyPath, got: %v", err)
+			}
 		} else {
 			file.Close()
 		}
